@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "smartp"
+version = "0.1.0"
+description = "Blocking test for all SMART capable drives on the system"
+authors = ["Jasper Chan <jasperchan515@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.scripts]
+smartp = "smartp.main:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
