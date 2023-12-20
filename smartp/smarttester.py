@@ -61,7 +61,7 @@ class SmartTester:
             self.logger.info(
                 f"Test finished in {self.time_in_test:.2f}s "
                 f"with return code {retcode}")
-            self.logger.info(str(result))
+            self.logger.info(result)
             return result
         except SmartTestTimeout:
             return None

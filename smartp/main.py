@@ -2,7 +2,7 @@ import logging
 import concurrent.futures
 import argparse
 
-from pySMART import DeviceList, Device
+from pySMART import DeviceList, Device, TestEntry
 from .smarttester import SmartTester
 
 logger = logging.getLogger("smartp")
@@ -57,7 +57,7 @@ def main():
     devices = DeviceList()
     if devices.devices:
         logger.info(f"Running {args.test} SMART test on: {[d.name for d in devices]}")
-        failed_devices = 0
+        failed_devices = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as ex:
             future_to_device = {
                 ex.submit(run_test, d, args.test, args.debug):d for d in devices
@@ -65,14 +65,22 @@ def main():
             for future in concurrent.futures.as_completed(future_to_device):
                 device = future_to_device[future]
                 result = future.result()
-                logger.info(f"{device.name}: {result.status}")
-                if result.status != "Completed without error":
-                    failed_devices += 1
-                    logger.error(
-                        "Found non-passed status for:\n"
-                        f"- device: {device}\n"
-                        f"- result: {result}")
-        exit(failed_devices)
+                if isinstance(result, TestEntry):
+                    logger.info(f"{device.name}: {result.status}")
+                    if result.status != "Completed without error":
+                        failed_devices.append(device)
+                        logger.error(
+                            "Found non-passed status for:\n"
+                            f"- device: {device}\n"
+                            f"- result: {result}")
+                elif isinstance(result, str):
+                    logger.warning(f"{device.name}: {result}")
+                    if f"Device {device.name} does not support the " in result:
+                        continue
+        logger.info("Tests finished")
+        if failed_devices:
+            logger.error(f"Failed devices: {[d.name for d in failed_devices]}")
+        exit(len(failed_devices))
     else:
         logger.error("No SMART capable disks found")
         exit(0)
