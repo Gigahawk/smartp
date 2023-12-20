@@ -30,7 +30,7 @@ class SmartTester:
         ch.setFormatter(formatter)
         self.logger.handlers = [ch]
         self.logger.debug("Initialized")
-    
+
     @property
     def time_in_test(self):
         try:
@@ -38,14 +38,14 @@ class SmartTester:
         except TypeError as err:
             self.logger.error(f"Invalid start time {self.start_time}")
             raise SmartTestInvalidStartTime from err
-    
+
     def _progress_handler(self, progress: float):
         self.logger.debug(f"Progress: {progress}")
         if self.time_in_test > self.wait_time_sec:
             self.logger.error(f"Test has exceeded {self.wait_time_sec}s")
             self.device.abort_selftest()
             raise SmartTestTimeout
-    
+
     def run_test(self):
         self.logger.info(
             f"Starting {self.test_type} test, "
