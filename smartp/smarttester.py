@@ -64,4 +64,4 @@ class SmartTester:
             self.logger.info(result)
             return result
         except SmartTestTimeout:
-            return None
+            return f"Test did not finish within {self.wait_time_sec}s"
