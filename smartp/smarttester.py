@@ -45,11 +45,17 @@ class SmartTester:
             self.logger.error(f"Test has exceeded {self.wait_time_sec}s")
             self.device.abort_selftest()
             raise SmartTestTimeout
+    @property
+    def _wait_time_sec_human(self):
+        return (
+            f"{self.wait_time_sec // 3600}h, "
+            f"{self.wait_time_sec % 3600 // 60}m, "
+            f"{self.wait_time_sec % 60:.2f}s")
 
     def run_test(self):
         self.logger.info(
             f"Starting {self.test_type} test, "
-            f"waiting up to {self.wait_time_sec}s for test to finish")
+            f"waiting up to {self._wait_time_sec_human} for test to finish")
         self.device.abort_selftest()
         self.start_time = time.time()
         # Using run_selftest and polling manually with get_selftest_result
