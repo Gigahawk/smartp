@@ -1,69 +1,28 @@
-import time
+import logging
 import concurrent.futures
 import argparse
-from pprint import pformat
-import json
-import subprocess
 
+from pySMART import DeviceList, Device
+from .smarttester import SmartTester
 
-def _is_smart_capable(name):
-    path = f"/dev/{name}"
-    check_cmd = f"smartctl --json -i {path}".split()
-    enable_cmd = f"smartctl -s on {path}".split()
-    data = json.loads(
-        subprocess.run(check_cmd, capture_output=True, text=True).stdout)
-    support = data.get("smart_support")
-    if not support or not support.get("available"):
-        return False
-    if not support.get("enabled"):
-        print(f"Enabling SMART on {path}")
-        subprocess.run(enable_cmd)
-    return True
+logger = logging.getLogger("smartp")
 
-def _get_poll_time(path, test_type):
-    check_cmd = f"smartctl --json -c {path}".split()
-    if test_type == "long":
-        test_type == "extended"
-    data = json.loads(
-        subprocess.run(check_cmd, capture_output=True, text=True).stdout)
-    time = data["ata_smart_data"]["self_test"]["polling_minutes"][test_type]
-    return time
+def init_logging(debug: bool):
+    ch = logging.StreamHandler()
+    if debug:
+        logger.setLevel(logging.DEBUG)
+        ch.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+        ch.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    ch.setFormatter(formatter)
+    logger.handlers = [ch]
+    logger.debug("Initialized")
 
-
-def run_test(name, test_type):
-    path = f"/dev/{name}"
-    reset_cmd = f"smartctl -X {path}".split()
-    run_cmd = f"smartctl -t {test_type} {path}".split()
-    check_cmd = f"smartctl --json -c {path}".split()
-    poll_time = _get_poll_time(path, test_type)
-    max_time = poll_time*3
-    subprocess.run(reset_cmd)
-    print(
-        f"{name}: starting {test_type} on {name}, "
-        f"will take about {poll_time} min")
-    start_time = time.time()
-    subprocess.run(run_cmd)
-    while time.time() - start_time < max_time*60:
-        time.sleep(1)
-        data = json.loads(
-            subprocess.run(check_cmd, capture_output=True, text=True).stdout)
-        passed = data["ata_smart_data"]["self_test"]["status"].get("passed")
-        if passed is not None:
-            print(f"{name}: {test_type} test complete, result: {passed}")
-            return passed
-    print(f"{name}: test did not finish after {max_time} minutes")
-    return False
-
-def run_tests(smart_disks, test_type, threads):
-    print(f"Running {test_type} SMART test on: {smart_disks}")
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as ex:
-        future_to_name = {
-            ex.submit(run_test, name, test_type):name for name in smart_disks
-        }
-        for future in concurrent.futures.as_completed(future_to_name):
-            name = future_to_name[future]
-            result = future.result()
-            print(f"{name}: {result}")
+def run_test(device: Device, test_type: str, debug: bool):
+    tester = SmartTester(device, test_type, debug=debug)
+    return tester.run_test()
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -85,26 +44,37 @@ def parse_args():
         default=20,
         type=int
     )
+    parser.add_argument(
+        "--debug",
+        help="Enable debug loggin",
+        action="store_true"
+    )
     return parser.parse_args()
 
 def main():
     args = parse_args()
-    lsblk_cmd = "lsblk -J -d -l -o NAME,SIZE,LABEL,MODEL,SERIAL".split()
-    out = subprocess.run(lsblk_cmd, capture_output=True, text=True)
-    disks = json.loads(out.stdout)["blockdevices"]
-    smart_disks = []
-    for d in disks:
-        print(f"Checking SMART capability on:\n{pformat(d)}")
-        name = d["name"]
-        if _is_smart_capable(name):
-            print(f"{name} is SMART capable")
-            smart_disks.append(name)
-        else:
-            print(f"{name} is not SMART capable")
-    if smart_disks:
-        run_tests(smart_disks, args.test, args.threads)
+    init_logging(args.debug)
+    devices = DeviceList()
+    if devices.devices:
+        logger.info(f"Running {args.test} SMART test on: {[d.name for d in devices]}")
+        failed_devices = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as ex:
+            future_to_device = {
+                ex.submit(run_test, d, args.test, args.debug):d for d in devices
+            }
+            for future in concurrent.futures.as_completed(future_to_device):
+                device = future_to_device[future]
+                result = future.result()
+                logger.info(f"{device.name}: {result.status}")
+                if result.status != "Completed without error":
+                    failed_devices += 1
+                    logger.error(
+                        "Found non-passed status for:\n"
+                        f"- device: {device}\n"
+                        f"- result: {result}")
+        exit(failed_devices)
     else:
-        print("No SMART capable disks found")
+        logger.error("No SMART capable disks found")
         exit(0)
 
 

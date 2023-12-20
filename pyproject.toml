@@ -7,6 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+pySMART = { git = "https://github.com/Gigahawk/py-SMART.git", branch = "polling_minutes" }
 
 [tool.poetry.scripts]
 smartp = "smartp.main:main"
