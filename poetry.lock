@@ -56,7 +56,7 @@ dev = ["coveralls", "pdoc", "pytest", "pytest-cov"]
 type = "git"
 url = "https://github.com/Gigahawk/py-SMART.git"
 reference = "polling_minutes"
-resolved_reference = "15f0da34fc0f0c198be6424f07cd3f987f358fcc"
+resolved_reference = "40eed10ef0cbb4ec6d45e95e732277693270acbf"
 
 [metadata]
 lock-version = "2.0"
