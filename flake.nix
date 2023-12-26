@@ -22,17 +22,10 @@
           smartp = mkPoetryApplication {
             projectDir = self;
             nativeBuildInputs = [ pkgs.makeWrapper ];
-            propogatedBuildInputs = [
-              pkgs.smartmontools
-              pkgs.util-linux
-              ];
+            propogatedBuildInputs = [ pkgs.smartmontools ];
             postInstall = ''
               wrapProgram "$out/bin/smartp" \
-                --prefix PATH : ${
-                  nixpkgs.lib.makeBinPath [
-                    pkgs.smartmontools
-                    pkgs.util-linux
-                  ]}
+                --prefix PATH : ${nixpkgs.lib.makeBinPath [ pkgs.smartmontools ]}
             '';
           };
           default = self.packages.${system}.smartp;
