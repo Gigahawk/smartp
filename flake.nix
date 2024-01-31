@@ -27,6 +27,8 @@
               wrapProgram "$out/bin/smartp" \
                 --prefix PATH : ${nixpkgs.lib.makeBinPath [ pkgs.smartmontools ]}
             '';
+            # Dependency check is broken for git dependencies on current nixpkgs
+            dontCheckRuntimeDeps = true;
           };
           default = self.packages.${system}.smartp;
         };
